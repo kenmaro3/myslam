@@ -10,7 +10,7 @@ from extractor import Extractor
 
 W = 940
 H = 580
-F = 282
+F = 300
 
 orb = cv2.ORB_create()
 disp = Display(W,H)
@@ -22,7 +22,7 @@ fe = Extractor(K)
 def process_frame(img):
   img = cv2.resize(img, (W, H))
   #kp, des = fe.extract(img)
-  matches = fe.extract(img)
+  matches, poses = fe.extract(img)
   if matches is None:
       return
   #kp, des = orb.detectAndCompute(img, None)

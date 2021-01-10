@@ -4,9 +4,30 @@ import numpy as np
 from skimage.measure import ransac
 from skimage.transform import FundamentalMatrixTransform, EssentialMatrixTransform
 
+f_est_avg = []
+
 # turn [[x,y]] -> [[x, y, 1]]
 def add_ones(x):
-    return np.concatenate([x, np.ones((x.shape[0], 1))], axis=1)
+  return np.concatenate([x, np.ones((x.shape[0], 1))], axis=1)
+
+def extractRt(E):
+  W = np.mat([[0,-1,0],[1,0,0],[0,0,1]], dtype=float)
+  U,d,Vt = np.linalg.svd(E)
+  assert np.linalg.det(U) > 0
+  if np.linalg.det(Vt) < 0:
+    Vt *= -1.0
+  R = np.dot(np.dot(U, W), Vt)
+  if np.sum(R.diagonal()) < 0:
+    R = np.dot(np.dot(U, W.T), Vt)
+  t = U[:, 2]
+
+  print("here") 
+  print(R.shape)
+  print(t.shape)
+  Rt = np.concatenate([R, t.reshape(3,1)], axis=1)
+  print(Rt)
+
+  return Rt 
 
 class Extractor(object):
   GX = 16//2
@@ -49,7 +70,7 @@ class Extractor(object):
           kp2 = self.last['kps'][m.trainIdx].pt
           ret.append((kp1, kp2))
 
-
+    pose = None
     if len(ret) > 0:
       ret = np.array(ret)
 
@@ -63,12 +84,21 @@ class Extractor(object):
 
     # filter
       model, inliers = ransac((ret[:, 0], ret[:, 1]),
-                        #EssentialMatrixTransform,
-                            FundamentalMatrixTransform,
-                             min_samples=8, residual_threshold=1, max_trials=100)
+                            EssentialMatrixTransform,
+                            #FundamentalMatrixTransform,
+                             min_samples=8, residual_threshold=0.005, max_trials=100)
       ret = ret[inliers]
 
-      s,v,d = np.linalg.svd(model.params)
+      pose = extractRt(model.params)
+      print(f'{len(inliers)} matches')
+      print(pose)
+      #print(R)
+
+      #print(sum(inliers))
+
+      #f_est = np.sqrt(2)/((v[0] + v[1])/2)
+      #f_est_avg.append(f_est)
+      #print(f_est, np.average(f_est_avg))
 
 
     self.last = {'kps': kps, 'des': des}
@@ -76,6 +106,6 @@ class Extractor(object):
 
     #return np.array([(kp.pt[0], kp.pt[1]) for kp in kps]), des
     #return matches
-    return ret
+    return ret, pose
     #return kps, des
 
